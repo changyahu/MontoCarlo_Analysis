@@ -1,0 +1,80 @@
+TITLE: Simulated Cangiano, Parker and Yeo (2019) JOB 
+       Cross-level moderated mediation: A-path and B-path
+
+DATA: FILE IS Example2.DAT;
+
+VARIABLE:
+	NAMES ARE PS PC_T2 VIT_T2 ANX_T2 DET PWB PC_T1 VIT_T1 ANX_T1 PERSON;
+	WITHIN = ANX_T1 PC_T1 PWB VIT_T1 VIT_T2 DET;
+	BETWEEN = PS;  ! Punitive Supervision
+
+    CLUSTER = PERSON;
+
+DEFINE: 
+
+! Person-mean center all within-group variables for Experience Sampling Method
+! PC_T2 and ANX_T2 are implicitly person-mean centered because both within and between
+CENTER PWB VIT_T1 PC_T1 ANX_T1 DET VIT_T2 (GROUPMEAN); 
+CENTER PS (GRANDMEAN);   ! Grand mean center between-group predictor
+
+ANALYSIS: TYPE = TWOLEVEL RANDOM;
+          PROCESSORS = 8;
+
+
+MODEL:
+	%WITHIN%
+
+	S1 | PC_T2 on PWB;  ! Random slope
+	PC_T2 ON VIT_T1;  ! Control for Vitality in am
+          PC_T2 ON PC_T1;  ! Control for previous day Perceived Competency
+
+	S2 | ANX_T2 on PWB;  ! Random slope
+	ANX_T2 ON ANX_T1;  ! Control for Anxiety in am
+
+    	VIT_T2 ON VIT_T1;  ! Control for Vitality in am
+    	VIT_T2 ON PC_T2 (Ab);  ! b-path
+        VIT_T2 ON PWB;  ! Direct path
+    	DET ON ANX_T1;  ! Control for Anxiety in am
+    	DET ON ANX_T2 (Bb);  ! b-path
+        DET ON PWB;  ! Direct path
+    	DET WITH VIT_T2;  ! Residuals of DVs covary
+    	PC_T2 WITH ANX_T2;  ! Residuals of mediators covary
+
+        [VIT_T2@0 DET@0];  ! Intercepts = 0 for group mean centered variables
+
+	%BETWEEN%
+
+	PC_T2 ON PS;  ! Gamma01 - Random intercept ON PS
+    	S1 ON PS (Aa3);  ! Gamma11 - Random slope ON PS
+    	PC_T2 WITH S1;  ! Random slope and random intercept covary
+    
+    	ANX_T2 ON PS;  ! Gamma01 - Random intercept ON PS
+    	S2 ON PS (Ba3);  ! Gamma11 - Random slope ON PS
+    	ANX_T2 WITH S2;  ! Random slope and random intercept covary
+
+    	PC_T2 WITH ANX_T2;  ! Residuals of DV covary
+        S1 WITH S2;  ! Residuals of S1 and S2 Covary
+
+[S1] (Aa1);  ! Gamma10 - Within-person main effect when PS = 0
+[S2] (Ba1);  ! Gamma10 - Within-person main effect when PS = 0
+
+PS (varPS);
+
+MODEL CONSTRAINT:
+NEW (WAb WBb WAa1 WBa1 WAa3 WBa3 STDPS);
+WAb = Ab;
+WBb = Bb;
+WAa1 = Aa1;
+WBa1 = Ba1;
+WAa3 = Aa3;
+WBa3 = Ba3;
+STDPS = SQRT(varPS);
+
+OUTPUT: TECH1 TECH3;
+
+SAVEDATA:
+RESULTS ARE Ctemp1.txt;
+TECH3 IS Ctemp2.txt;
+
+
+
